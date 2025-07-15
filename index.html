@@ -3,235 +3,588 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Крестики-нолики</title>
+    <title>Airplane Shooter Pro</title>
     <style>
         * {
-            box-sizing: border-box;
             margin: 0;
             padding: 0;
-            font-family: 'Arial', sans-serif;
+            box-sizing: border-box;
+            touch-action: none;
         }
-
+        
         body {
+            overflow: hidden;
+            background: #121212;
+        }
+        
+        #game-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            background: #000 url('assets/backgrounds/space_bg.png') repeat-x;
+            background-size: auto 100%;
+            overflow: hidden;
+        }
+        
+        #player {
+            position: absolute;
+            width: 30px;
+            height: 20px;
+            background: url('assets/sprites/player_ship.png') center/contain no-repeat;
+            z-index: 10;
+            left: 50px;
+            top: 50%;
+            transform: translateY(-50%);
+            transition: transform 0.1s ease-out;
+        }
+        
+        .bullet {
+            position: absolute;
+            width: 10px;
+            height: 3px;
+            background: url('assets/sprites/player_bullet.png') center/contain no-repeat;
+            z-index: 5;
+        }
+        
+        .enemy {
+            position: absolute;
+            width: 40px;
+            height: 28px;
+            background: url('assets/sprites/enemy_fighter.png') center/contain no-repeat;
+        }
+        
+        .enemy-bullet {
+            position: absolute;
+            width: 12px;
+            height: 6px;
+            background: url('assets/sprites/enemy_bullet.png') center/contain no-repeat;
+            border-radius: 4px;
+        }
+        
+        .obstacle {
+            position: absolute;
+            background: url('assets/sprites/space_obstacle.png') center/contain no-repeat;
+            border-radius: 5px;
+        }
+        
+        #score {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            font-size: 20px;
+            color: white;
+            font-family: 'Arial', sans-serif;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.7);
+            z-index: 20;
+        }
+        
+        #lives {
+            position: absolute;
+            top: 15px;
+            left: 15px;
+            font-size: 20px;
+            color: white;
+            font-family: 'Arial', sans-serif;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.7);
+            z-index: 20;
+        }
+        
+        #game-over {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
             display: flex;
             flex-direction: column;
-            align-items: center;
             justify-content: center;
-            min-height: 100vh;
-            background-color: #f0f0f0;
-            padding: 20px;
-        }
-
-        h1 {
-            margin-bottom: 20px;
-            color: #333;
-        }
-
-        .board {
-            display: grid;
-            grid-template-columns: repeat(3, 100px);
-            grid-gap: 5px;
-            margin-bottom: 20px;
-        }
-
-        .cell {
-            width: 100px;
-            height: 100px;
-            background-color: #fff;
-            border: 2px solid #333;
-            display: flex;
             align-items: center;
-            justify-content: center;
-            font-size: 2.5rem;
-            cursor: pointer;
-            transition: background-color 0.3s;
-        }
-
-        .cell.x::before {
-            content: 'X';
-            color: #ff4d4d;
-        }
-
-        .cell.o::before {
-            content: 'O';
-            color: #4da6ff;
-        }
-
-        .cell.win {
-            background-color: #aaffaa;
-        }
-
-        .status {
-            font-size: 1.5rem;
-            margin-bottom: 20px;
-            height: 2rem;
-            text-align: center;
-        }
-
-        .restart {
-            padding: 10px 20px;
-            font-size: 1rem;
-            background-color: #4da6ff;
             color: white;
+            font-family: 'Arial', sans-serif;
+            z-index: 30;
+            display: none;
+        }
+        
+        #restart-btn {
+            margin-top: 20px;
+            padding: 10px 20px;
+            background: #4CAF50;
             border: none;
             border-radius: 5px;
+            color: white;
+            font-size: 18px;
             cursor: pointer;
-            transition: background-color 0.3s;
         }
-
-        .restart:hover {
-            background-color: #3d8be6;
+        
+        .controls-info {
+            position: absolute;
+            bottom: 15px;
+            width: 100%;
+            text-align: center;
+            color: white;
+            font-family: 'Arial', sans-serif;
+            font-size: 14px;
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.7);
         }
-
-        @media (max-width: 340px) {
-            .board {
-                grid-template-columns: repeat(3, 80px);
-            }
-            .cell {
-                width: 80px;
-                height: 80px;
-                font-size: 2rem;
-            }
+        
+        .invulnerable {
+            animation: blink 0.2s infinite;
+        }
+        
+        @keyframes blink {
+            0% { opacity: 0.3; }
+            50% { opacity: 0.8; }
+            100% { opacity: 0.3; }
         }
     </style>
 </head>
 <body>
-    <h1>Крестики-нолики</h1>
-    <div class="status" id="status">Ваш ход (X)</div>
-    <div class="board" id="board"></div>
-    <button class="restart" id="restart">Новая игра</button>
+    <div id="game-container">
+        <div id="player"></div>
+        <div id="lives">Жизни: ❤️❤️❤️</div>
+        <div id="score">Очки: 0</div>
+        <div class="controls-info">Используй стрелки вверх/вниз или двигай пальцем по экрану</div>
+        
+        <div id="game-over">
+            <h1>Игра окончена!</h1>
+            <p id="final-score">Ваш счет: 0</p>
+            <button id="restart-btn">Играть снова</button>
+        </div>
+    </div>
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
-            const boardElement = document.getElementById('board');
-            const statusElement = document.getElementById('status');
-            const restartButton = document.getElementById('restart');
-
-            let board = ['', '', '', '', '', '', '', '', ''];
-            let currentPlayer = 'X'; // X - человек, O - компьютер
+            const gameContainer = document.getElementById('game-container');
+            const player = document.getElementById('player');
+            const livesDisplay = document.getElementById('lives');
+            const scoreDisplay = document.getElementById('score');
+            const gameOverScreen = document.getElementById('game-over');
+            const finalScoreDisplay = document.getElementById('final-score');
+            const restartBtn = document.getElementById('restart-btn');
+            
+            // Игровые переменные
+            let playerY = gameContainer.clientHeight / 2;
+            let playerVelocityY = 0;
+            let playerAcceleration = 0.5;
+            let playerMaxSpeed = 12;
+            let playerFriction = 0.9;
+            let playerLives = 3;
+            let score = 0;
             let gameActive = true;
-
-            // Создаем игровое поле
-            for (let i = 0; i < 9; i++) {
-                const cell = document.createElement('div');
-                cell.classList.add('cell');
-                cell.setAttribute('data-index', i);
-                cell.addEventListener('click', () => handleCellClick(cell, i));
-                boardElement.appendChild(cell);
-            }
-
-            restartButton.addEventListener('click', restartGame);
-
-            function handleCellClick(cell, index) {
-                if (!gameActive || board[index] !== '') return;
-
-                // Ход человека
-                board[index] = 'X';
-                cell.classList.add('x');
-
-                if (checkWin('X')) {
-                    endGame('Поздравляем! Вы победили!');
-                    highlightWinningCells();
-                    return;
-                }
-
-                if (isBoardFull()) {
-                    endGame('Ничья!');
-                    return;
-                }
-
-                // Переключаем на компьютер
-                currentPlayer = 'O';
-                statusElement.textContent = 'Ход компьютера...';
-
-                // Даем небольшую задержку для хода компьютера
-                setTimeout(computerMove, 500);
-            }
-
-            function computerMove() {
+            let bullets = [];
+            let enemies = [];
+            let enemyBullets = [];
+            let obstacles = [];
+            let lastShot = 0;
+            let touchStartY = 0;
+            let playerStartY = 0;
+            let isTouching = false;
+            let enemySpawnTimer = 0;
+            let obstacleSpawnTimer = 0;
+            let backgroundOffset = 0;
+            let enemyShootInterval = 3000;
+            let invulnerable = false;
+            let invulnerableTimer = 0;
+            
+            // Состояния спрайта игрока
+            const playerSprites = [
+                'assets/sprites/player_ship.png',
+                'assets/sprites/player_ship_damaged1.png',
+                'assets/sprites/player_sprite_damaged2.png'
+            ];
+            
+            // Управление с клавиатуры
+            document.addEventListener('keydown', (e) => {
                 if (!gameActive) return;
-
-                // Простой ИИ: выбираем случайную свободную клетку
-                let availableCells = [];
-                for (let i = 0; i < board.length; i++) {
-                    if (board[i] === '') {
-                        availableCells.push(i);
-                    }
+                
+                if (e.key === 'ArrowUp') {
+                    playerVelocityY -= playerAcceleration;
+                    playerVelocityY = Math.max(playerVelocityY, -playerMaxSpeed);
+                } else if (e.key === 'ArrowDown') {
+                    playerVelocityY += playerAcceleration;
+                    playerVelocityY = Math.min(playerVelocityY, playerMaxSpeed);
                 }
-
-                if (availableCells.length > 0) {
-                    const randomIndex = availableCells[Math.floor(Math.random() * availableCells.length)];
-                    board[randomIndex] = 'O';
-                    const cell = boardElement.children[randomIndex];
-                    cell.classList.add('o');
-
-                    if (checkWin('O')) {
-                        endGame('Компьютер победил!');
-                        highlightWinningCells();
-                        return;
-                    }
-
-                    if (isBoardFull()) {
-                        endGame('Ничья!');
-                        return;
-                    }
-
-                    currentPlayer = 'X';
-                    statusElement.textContent = 'Ваш ход (X)';
-                }
+            });
+            
+            // Управление касанием для мобильных устройств
+            gameContainer.addEventListener('touchstart', (e) => {
+                if (!gameActive) return;
+                
+                touchStartY = e.touches[0].clientY;
+                playerStartY = playerY;
+                isTouching = true;
+                e.preventDefault();
+            });
+            
+            gameContainer.addEventListener('touchmove', (e) => {
+                if (!gameActive || !isTouching) return;
+                
+                const touchY = e.touches[0].clientY;
+                const diff = touchY - touchStartY;
+                
+                // Плавное движение с ограничением скорости
+                playerVelocityY = diff * 0.1;
+                playerVelocityY = Math.max(Math.min(playerVelocityY, playerMaxSpeed), -playerMaxSpeed);
+                
+                e.preventDefault();
+            });
+            
+            gameContainer.addEventListener('touchend', () => {
+                isTouching = false;
+            });
+            
+            function updatePlayerPosition() {
+                // Применяем трение для плавного замедления
+                playerVelocityY *= playerFriction;
+                
+                // Обновляем позицию
+                playerY += playerVelocityY;
+                
+                // Ограничиваем движение в пределах экрана
+                playerY = Math.min(Math.max(playerY, 15), gameContainer.clientHeight - 15);
+                
+                // Обновляем позицию на экране
+                player.style.top = `${playerY}px`;
+                
+                // Наклон самолета при движении
+                const rotation = playerVelocityY * 0.5;
+                player.style.transform = `translateY(-50%) rotate(${rotation}deg)`;
             }
-
-            function checkWin(player) {
-                const winPatterns = [
-                    [0, 1, 2], [3, 4, 5], [6, 7, 8], // строки
-                    [0, 3, 6], [1, 4, 7], [2, 5, 8], // столбцы
-                    [0, 4, 8], [2, 4, 6]             // диагонали
-                ];
-
-                return winPatterns.some(pattern => {
-                    const [a, b, c] = pattern;
-                    return board[a] === player && board[b] === player && board[c] === player;
+            
+            // Игровой цикл
+            function gameLoop(timestamp) {
+                if (!gameActive) return;
+                
+                // Обновление позиции игрока
+                updatePlayerPosition();
+                
+                // Стрельба игрока
+                if (timestamp - lastShot > 300) {
+                    shoot();
+                    lastShot = timestamp;
+                }
+                
+                // Генерация врагов
+                enemySpawnTimer += 16;
+                if (enemySpawnTimer > 1500) {
+                    createEnemy();
+                    enemySpawnTimer = 0;
+                }
+                
+                // Генерация препятствий
+                obstacleSpawnTimer += 16;
+                if (obstacleSpawnTimer > 2500) {
+                    createObstacle();
+                    obstacleSpawnTimer = 0;
+                }
+                
+                // Движение пуль игрока
+                moveBullets();
+                
+                // Движение врагов и их стрельба
+                moveEnemies(timestamp);
+                
+                // Движение пуль врагов
+                moveEnemyBullets();
+                
+                // Движение препятствий
+                moveObstacles();
+                
+                // Проверка столкновений
+                checkCollisions();
+                
+                // Анимируем фон
+                backgroundOffset = (backgroundOffset + 0.5) % 100;
+                gameContainer.style.backgroundPosition = `${backgroundOffset}% 0`;
+                
+                // Обработка неуязвимости
+                if (invulnerable) {
+                    invulnerableTimer += 16;
+                    if (invulnerableTimer > 2000) {
+                        invulnerable = false;
+                        invulnerableTimer = 0;
+                        player.classList.remove('invulnerable');
+                    }
+                }
+                
+                requestAnimationFrame(gameLoop);
+            }
+            
+            function shoot() {
+                const bullet = document.createElement('div');
+                bullet.className = 'bullet';
+                bullet.style.left = `${player.getBoundingClientRect().right}px`;
+                bullet.style.top = `${playerY - 1}px`;
+                gameContainer.appendChild(bullet);
+                bullets.push(bullet);
+            }
+            
+            function createEnemy() {
+                const enemy = document.createElement('div');
+                enemy.className = 'enemy';
+                const y = Math.random() * (gameContainer.clientHeight - 80) + 40;
+                enemy.style.left = `${gameContainer.clientWidth}px`;
+                enemy.style.top = `${y}px`;
+                gameContainer.appendChild(enemy);
+                
+                enemies.push({
+                    element: enemy,
+                    x: gameContainer.clientWidth,
+                    y: y,
+                    speed: 2 + Math.random() * 3,
+                    shootTimer: 0,
+                    direction: Math.random() > 0.5 ? 1 : -1,
+                    moveSpeed: 0.5 + Math.random() * 1
                 });
             }
-
-            function highlightWinningCells() {
-                const winPatterns = [
-                    [0, 1, 2], [3, 4, 5], [6, 7, 8],
-                    [0, 3, 6], [1, 4, 7], [2, 5, 8],
-                    [0, 4, 8], [2, 4, 6]
-                ];
-
-                for (const pattern of winPatterns) {
-                    const [a, b, c] = pattern;
-                    if (board[a] !== '' && board[a] === board[b] && board[b] === board[c]) {
-                        boardElement.children[a].classList.add('win');
-                        boardElement.children[b].classList.add('win');
-                        boardElement.children[c].classList.add('win');
-                        break;
+            
+            function createObstacle() {
+                const obstacle = document.createElement('div');
+                obstacle.className = 'obstacle';
+                
+                if (Math.random() > 0.5) {
+                    obstacle.style.width = '25px';
+                    obstacle.style.height = `${Math.random() * 150 + 80}px`;
+                    obstacle.style.left = `${gameContainer.clientWidth}px`;
+                    obstacle.style.top = `${Math.random() * (gameContainer.clientHeight - 150)}px`;
+                } else {
+                    obstacle.style.width = `${Math.random() * 120 + 80}px`;
+                    obstacle.style.height = '25px';
+                    obstacle.style.left = `${gameContainer.clientWidth}px`;
+                    obstacle.style.top = `${Math.random() * (gameContainer.clientHeight - 80)}px`;
+                }
+                
+                gameContainer.appendChild(obstacle);
+                
+                obstacles.push({
+                    element: obstacle,
+                    x: gameContainer.clientWidth,
+                    y: parseInt(obstacle.style.top),
+                    speed: 2 + Math.random() * 2
+                });
+            }
+            
+            function moveBullets() {
+                for (let i = bullets.length - 1; i >= 0; i--) {
+                    const bullet = bullets[i];
+                    const bulletRect = bullet.getBoundingClientRect();
+                    const newX = bulletRect.left + 10;
+                    
+                    if (newX > gameContainer.clientWidth) {
+                        bullet.remove();
+                        bullets.splice(i, 1);
+                        continue;
+                    }
+                    
+                    bullet.style.left = `${newX}px`;
+                }
+            }
+            
+            function moveEnemies(timestamp) {
+                for (let i = enemies.length - 1; i >= 0; i--) {
+                    const enemy = enemies[i];
+                    
+                    // Движение влево
+                    enemy.x -= enemy.speed;
+                    enemy.element.style.left = `${enemy.x}px`;
+                    
+                    // Движение вверх/вниз
+                    enemy.y += enemy.direction * enemy.moveSpeed;
+                    if (enemy.y < 30 || enemy.y > gameContainer.clientHeight - 30) {
+                        enemy.direction *= -1;
+                    }
+                    enemy.element.style.top = `${enemy.y}px`;
+                    
+                    // Стрельба врагов (в 2 раза реже)
+                    enemy.shootTimer += 16;
+                    if (enemy.shootTimer > enemyShootInterval) {
+                        const bullet = document.createElement('div');
+                        bullet.className = 'enemy-bullet';
+                        bullet.style.left = `${enemy.x}px`;
+                        bullet.style.top = `${enemy.y + 14}px`;
+                        gameContainer.appendChild(bullet);
+                        enemyBullets.push(bullet);
+                        enemy.shootTimer = 0;
+                    }
+                    
+                    // Удаление врагов за экраном
+                    if (enemy.x < -40) {
+                        enemy.element.remove();
+                        enemies.splice(i, 1);
                     }
                 }
             }
-
-            function isBoardFull() {
-                return board.every(cell => cell !== '');
+            
+            function moveEnemyBullets() {
+                for (let i = enemyBullets.length - 1; i >= 0; i--) {
+                    const bullet = enemyBullets[i];
+                    const bulletRect = bullet.getBoundingClientRect();
+                    const newX = bulletRect.left - 4;
+                    
+                    if (newX < -20) {
+                        bullet.remove();
+                        enemyBullets.splice(i, 1);
+                        continue;
+                    }
+                    
+                    bullet.style.left = `${newX}px`;
+                }
             }
-
-            function endGame(message) {
+            
+            function moveObstacles() {
+                for (let i = obstacles.length - 1; i >= 0; i--) {
+                    const obstacle = obstacles[i];
+                    obstacle.x -= obstacle.speed;
+                    obstacle.element.style.left = `${obstacle.x}px`;
+                    
+                    if (obstacle.x < -obstacle.element.clientWidth) {
+                        obstacle.element.remove();
+                        obstacles.splice(i, 1);
+                    }
+                }
+            }
+            
+            function checkCollisions() {
+                if (invulnerable) return;
+                
+                const playerRect = player.getBoundingClientRect();
+                
+                // Проверка столкновений игрока с врагами
+                for (let i = enemies.length - 1; i >= 0; i--) {
+                    const enemy = enemies[i];
+                    const enemyRect = enemy.element.getBoundingClientRect();
+                    
+                    if (isColliding(playerRect, enemyRect)) {
+                        takeDamage();
+                        return;
+                    }
+                }
+                
+                // Проверка столкновений игрока с вражескими пулями
+                for (let i = enemyBullets.length - 1; i >= 0; i--) {
+                    const bullet = enemyBullets[i];
+                    const bulletRect = bullet.getBoundingClientRect();
+                    
+                    if (isColliding(playerRect, bulletRect)) {
+                        bullet.remove();
+                        enemyBullets.splice(i, 1);
+                        takeDamage();
+                        return;
+                    }
+                }
+                
+                // Проверка столкновений игрока с препятствиями
+                for (let i = obstacles.length - 1; i >= 0; i--) {
+                    const obstacle = obstacles[i];
+                    const obstacleRect = obstacle.element.getBoundingClientRect();
+                    
+                    if (isColliding(playerRect, obstacleRect)) {
+                        takeDamage();
+                        return;
+                    }
+                }
+                
+                // Проверка столкновений пуль игрока с врагами
+                for (let i = bullets.length - 1; i >= 0; i--) {
+                    const bullet = bullets[i];
+                    const bulletRect = bullet.getBoundingClientRect();
+                    
+                    for (let j = enemies.length - 1; j >= 0; j--) {
+                        const enemy = enemies[j];
+                        const enemyRect = enemy.element.getBoundingClientRect();
+                        
+                        if (isColliding(bulletRect, enemyRect)) {
+                            // Удаляем пулю и врага
+                            bullet.remove();
+                            bullets.splice(i, 1);
+                            enemy.element.remove();
+                            enemies.splice(j, 1);
+                            
+                            // Добавляем очки
+                            score += 10;
+                            scoreDisplay.textContent = `Очки: ${score}`;
+                            break;
+                        }
+                    }
+                }
+            }
+            
+            function takeDamage() {
+                playerLives--;
+                updateLivesDisplay();
+                
+                if (playerLives <= 0) {
+                    endGame();
+                    return;
+                }
+                
+                // Обновляем спрайт в зависимости от количества жизней
+                player.style.backgroundImage = `url('${playerSprites[3 - playerLives - 1]}')`;
+                
+                // Включаем неуязвимость на 2 секунды
+                invulnerable = true;
+                invulnerableTimer = 0;
+                player.classList.add('invulnerable');
+            }
+            
+            function updateLivesDisplay() {
+                let livesHTML = 'Жизни: ';
+                for (let i = 0; i < playerLives; i++) {
+                    livesHTML += '❤️';
+                }
+                livesDisplay.innerHTML = livesHTML;
+            }
+            
+            function isColliding(rect1, rect2) {
+                return (
+                    rect1.left < rect2.right &&
+                    rect1.right > rect2.left &&
+                    rect1.top < rect2.bottom &&
+                    rect1.bottom > rect2.top
+                );
+            }
+            
+            function endGame() {
                 gameActive = false;
-                statusElement.textContent = message;
+                finalScoreDisplay.textContent = `Ваш счет: ${score}`;
+                gameOverScreen.style.display = 'flex';
             }
-
-            function restartGame() {
-                board = ['', '', '', '', '', '', '', '', ''];
-                currentPlayer = 'X';
+            
+            restartBtn.addEventListener('click', () => {
+                // Удаляем все игровые элементы
+                document.querySelectorAll('.bullet, .enemy, .enemy-bullet, .obstacle').forEach(el => el.remove());
+                
+                // Сбрасываем игровые переменные
+                bullets = [];
+                enemies = [];
+                enemyBullets = [];
+                obstacles = [];
+                playerLives = 3;
+                score = 0;
+                playerY = gameContainer.clientHeight / 2;
+                playerVelocityY = 0;
+                
+                // Обновляем отображение
+                scoreDisplay.textContent = `Очки: ${score}`;
+                updateLivesDisplay();
+                player.style.backgroundImage = `url('${playerSprites[0]}')`;
+                player.classList.remove('invulnerable');
+                player.style.transform = 'translateY(-50%) rotate(0deg)';
+                updatePlayerPosition();
+                gameOverScreen.style.display = 'none';
+                
+                // Запускаем игру заново
                 gameActive = true;
-                statusElement.textContent = 'Ваш ход (X)';
-
-                // Очищаем доску
-                Array.from(boardElement.children).forEach(cell => {
-                    cell.className = 'cell';
-                });
-            }
+                invulnerable = false;
+                requestAnimationFrame(gameLoop);
+            });
+            
+            // Инициализация игры
+            updateLivesDisplay();
+            
+            // Запускаем игру
+            requestAnimationFrame(gameLoop);
         });
     </script>
 </body>
