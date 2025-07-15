@@ -21,16 +21,13 @@
             position: relative;
             width: 100vw;
             height: 100vh;
-            background: linear-gradient(to bottom, #1a2980, #26d0ce);
+            background: url('sprites/Space_Stars4.png');
+            background-size: cover;
             overflow: hidden;
         }
         
         #player {
             position: absolute;
-            width: 40px;
-            height: 25px;
-            background: #4CAF50;
-            clip-path: polygon(50% 0, 100% 30%, 100% 70%, 50% 100%, 0 70%, 0 30%);
             z-index: 10;
             bottom: 100px;
             left: 50%;
@@ -49,17 +46,7 @@
         
         .enemy {
             position: absolute;
-            width: 30px;
-            height: 30px;
-            border-radius: 50%;
-        }
-        
-        .enemy-type1 {
-            background: #F44336;
-        }
-        
-        .enemy-type2 {
-            background: #FF9800;
+            z-index: 7;
         }
         
         .enemy-bullet {
@@ -140,7 +127,7 @@
 </head>
 <body>
     <div id="game-container">
-        <div id="player"></div>
+        <img id="player" src="sprites/Main Ship - Base - Full health.png" alt="Player Ship">
         <div id="lives">Жизни: ❤️❤️❤️</div>
         <div id="score">Очки: 0</div>
         <div class="controls-info">Используй стрелки влево/вправо или двигай пальцем по экрану</div>
@@ -162,6 +149,13 @@
             const finalScoreDisplay = document.getElementById('final-score');
             const restartBtn = document.getElementById('restart-btn');
             
+            // Спрайты для игрока в зависимости от здоровья
+            const playerSprites = [
+                'sprites/Main Ship - Base - Full health.png',
+                'sprites/Main Ship - Base - Damaged.png',
+                'sprites/Main Ship - Base - Very damaged.png'
+            ];
+            
             // Игровые переменные
             let playerX = gameContainer.clientWidth / 2;
             let playerLives = 3;
@@ -180,12 +174,11 @@
             let backgroundOffset = 0;
             let lastTimestamp = 0;
             
-            // Управление с клавиатуры
+            // Управление с клавиатуры (увеличена скорость на 15%)
             document.addEventListener('keydown', (e) => {
                 if (!gameActive) return;
                 
-                // Для клавиатуры сохраняем плавное движение с инерцией
-                const keySpeed = 15;
+                const keySpeed = 17; // Было 15 (+15%)
                 if (e.key === 'ArrowLeft') {
                     playerX = Math.max(20, playerX - keySpeed);
                 } else if (e.key === 'ArrowRight') {
@@ -210,13 +203,8 @@
                 const touchX = e.touches[0].clientX;
                 const diff = touchX - touchStartX;
                 
-                // Плавное движение без инерции
                 playerX = playerStartX + diff;
-                
-                // Ограничиваем движение в пределах экрана
                 playerX = Math.min(Math.max(playerX, 20), gameContainer.clientWidth - 20);
-                
-                // Обновляем позицию на экране
                 player.style.left = `${playerX}px`;
                 
                 e.preventDefault();
@@ -230,20 +218,16 @@
                 const bullet = document.createElement('div');
                 bullet.className = 'bullet';
                 
-                // Пуля появляется из носа самолета
                 const playerRect = player.getBoundingClientRect();
                 const gameRect = gameContainer.getBoundingClientRect();
                 
-                // Центр игрока по X
                 const bulletX = playerX;
-                // Верхняя точка игрока + небольшой отступ
                 const bulletY = (playerRect.top - gameRect.top) - 10;
                 
                 bullet.style.left = `${bulletX}px`;
                 bullet.style.top = `${bulletY}px`;
                 gameContainer.appendChild(bullet);
                 
-                // Сохраняем позицию снаряда
                 bullets.push({
                     element: bullet,
                     x: bulletX,
@@ -252,28 +236,33 @@
             }
             
             function createEnemy() {
-                const enemy = document.createElement('div');
-                
-                // Случайно выбираем тип врага
                 const enemyType = Math.random() > 0.5 ? 1 : 2;
-                enemy.className = `enemy enemy-type${enemyType}`;
+                const enemyImg = document.createElement('img');
                 
-                const x = Math.random() * (gameContainer.clientWidth - 60) + 30;
-                enemy.style.left = `${x}px`;
-                enemy.style.bottom = `${gameContainer.clientHeight}px`;
-                gameContainer.appendChild(enemy);
+                // Установка спрайта врага
+                if (enemyType === 1) {
+                    enemyImg.src = 'sprites/Nairan - Bomber - Base.png';
+                } else {
+                    enemyImg.src = 'sprites/Nairan - Scout - Base.png';
+                }
+                
+                enemyImg.className = `enemy`;
+                enemyImg.alt = `Enemy ${enemyType === 1 ? 'Bomber' : 'Scout'}`;
+                
+                const x = Math.random() * (gameContainer.clientWidth - 100) + 50;
+                enemyImg.style.left = `${x}px`;
+                enemyImg.style.bottom = `${gameContainer.clientHeight}px`;
+                gameContainer.appendChild(enemyImg);
                 
                 // Параметры врагов по типу
                 let speed, shootInterval, horizontalSpeed, amplitude;
                 
                 if (enemyType === 1) {
-                    // Тип 1: быстрее, реже стреляет
                     speed = 3.5;
                     shootInterval = 3000;
                     horizontalSpeed = 0.06;
                     amplitude = 50;
                 } else {
-                    // Тип 2: медленнее, чаще стреляет
                     speed = 2.5;
                     shootInterval = 2000;
                     horizontalSpeed = 0.04;
@@ -281,7 +270,7 @@
                 }
                 
                 enemies.push({
-                    element: enemy,
+                    element: enemyImg,
                     x: x,
                     initialX: x,
                     y: gameContainer.clientHeight,
@@ -323,11 +312,9 @@
             function moveBullets(deltaTime) {
                 for (let i = bullets.length - 1; i >= 0; i--) {
                     const bullet = bullets[i];
-                    // Двигаем снаряд вверх (уменьшаем Y)
                     bullet.y -= 12 * (deltaTime / 16);
                     bullet.element.style.top = `${bullet.y}px`;
                     
-                    // Удаляем если вышел за верхнюю границу экрана
                     if (bullet.y < -20) {
                         bullet.element.remove();
                         bullets.splice(i, 1);
@@ -339,16 +326,13 @@
                 for (let i = enemies.length - 1; i >= 0; i--) {
                     const enemy = enemies[i];
                     
-                    // Движение вверх (к игроку)
                     enemy.y -= enemy.speed * (deltaTime / 16);
                     enemy.element.style.bottom = `${enemy.y}px`;
                     
-                    // Горизонтальное движение (синусоидальное)
                     enemy.angle += enemy.horizontalSpeed * (deltaTime / 16);
                     enemy.x = enemy.initialX + Math.sin(enemy.angle) * enemy.amplitude;
                     enemy.element.style.left = `${enemy.x}px`;
                     
-                    // Стрельба врагов
                     enemy.shootTimer += deltaTime;
                     if (enemy.shootTimer > (enemy.type === 1 ? 3000 : 2000)) {
                         const bullet = document.createElement('div');
@@ -357,7 +341,6 @@
                         bullet.style.bottom = `${enemy.y}px`;
                         gameContainer.appendChild(bullet);
                         
-                        // Сохраняем позицию снаряда
                         enemyBullets.push({
                             element: bullet,
                             y: parseInt(bullet.style.bottom)
@@ -366,7 +349,6 @@
                         enemy.shootTimer = 0;
                     }
                     
-                    // Удаление врагов за экраном
                     if (enemy.y < -50) {
                         enemy.element.remove();
                         enemies.splice(i, 1);
@@ -377,7 +359,6 @@
             function moveEnemyBullets(deltaTime) {
                 for (let i = enemyBullets.length - 1; i >= 0; i--) {
                     const bullet = enemyBullets[i];
-                    // Двигаем снаряд вниз (к игроку)
                     bullet.y -= 7 * (deltaTime / 16);
                     bullet.element.style.bottom = `${bullet.y}px`;
                     
@@ -449,13 +430,11 @@
                         const enemyRect = enemy.element.getBoundingClientRect();
                         
                         if (isColliding(bulletRect, enemyRect)) {
-                            // Удаляем пулю и врага
                             bullet.element.remove();
                             bullets.splice(i, 1);
                             enemy.element.remove();
                             enemies.splice(j, 1);
                             
-                            // Добавляем очки (больше за быстрых врагов)
                             score += enemy.type === 1 ? 20 : 10;
                             scoreDisplay.textContent = `Очки: ${score}`;
                             break;
@@ -468,10 +447,17 @@
                 playerLives--;
                 updateLivesDisplay();
                 
+                // Обновление спрайта игрока в зависимости от здоровья
+                if (playerLives === 2) {
+                    player.src = playerSprites[1];
+                } else if (playerLives === 1) {
+                    player.src = playerSprites[2];
+                }
+                
                 // Анимация повреждения
-                player.style.backgroundColor = '#ff0000';
+                player.style.filter = 'brightness(2)';
                 setTimeout(() => {
-                    if (gameActive) player.style.backgroundColor = '#4CAF50';
+                    if (gameActive) player.style.filter = 'brightness(1)';
                 }, 200);
                 
                 if (playerLives <= 0) {
@@ -488,12 +474,28 @@
             }
             
             function isColliding(rect1, rect2) {
-                return (
-                    rect1.left < rect2.right &&
-                    rect1.right > rect2.left &&
-                    rect1.top < rect2.bottom &&
-                    rect1.bottom > rect2.top
-                );
+                // Уменьшение хитбокса для более точного определения столкновений
+                const reduction = 0.2;
+                const width1 = rect1.width * (1 - reduction);
+                const height1 = rect1.height * (1 - reduction);
+                const width2 = rect2.width * (1 - reduction);
+                const height2 = rect2.height * (1 - reduction);
+                
+                const center1 = {
+                    x: rect1.left + rect1.width / 2,
+                    y: rect1.top + rect1.height / 2
+                };
+                
+                const center2 = {
+                    x: rect2.left + rect2.width / 2,
+                    y: rect2.top + rect2.height / 2
+                };
+                
+                const distanceX = Math.abs(center1.x - center2.x);
+                const distanceY = Math.abs(center1.y - center2.y);
+                
+                return distanceX < (width1 + width2) / 2 && 
+                       distanceY < (height1 + height2) / 2;
             }
             
             function endGame() {
@@ -506,46 +508,32 @@
             function gameLoop(timestamp) {
                 if (!gameActive) return;
                 
-                // Рассчитываем дельту времени для плавного движения
                 const deltaTime = timestamp - (lastTimestamp || timestamp);
                 lastTimestamp = timestamp;
                 
-                // Стрельба игрока
                 if (timestamp - lastShot > 400) {
                     shoot();
                     lastShot = timestamp;
                 }
                 
-                // Генерация врагов
                 enemySpawnTimer += deltaTime;
                 if (enemySpawnTimer > 1000) {
                     createEnemy();
                     enemySpawnTimer = 0;
                 }
                 
-                // Генерация препятствий
                 obstacleSpawnTimer += deltaTime;
                 if (obstacleSpawnTimer > 2000) {
                     createObstacle();
                     obstacleSpawnTimer = 0;
                 }
                 
-                // Движение пуль игрока
                 moveBullets(deltaTime);
-                
-                // Движение врагов и их стрельба
                 moveEnemies(timestamp, deltaTime);
-                
-                // Движение пуль врагов
                 moveEnemyBullets(deltaTime);
-                
-                // Движение препятствий
                 moveObstacles(deltaTime);
-                
-                // Проверка столкновений
                 checkCollisions();
                 
-                // Анимируем фон (движение вниз)
                 backgroundOffset = (backgroundOffset + 1.5 * (deltaTime / 16)) % 100;
                 gameContainer.style.backgroundPosition = `0 ${backgroundOffset}%`;
                 
@@ -553,10 +541,8 @@
             }
             
             restartBtn.addEventListener('click', () => {
-                // Удаляем все игровые элементы
                 document.querySelectorAll('.bullet, .enemy, .enemy-bullet, .obstacle').forEach(el => el.remove());
                 
-                // Сбрасываем игровые переменные
                 bullets = [];
                 enemies = [];
                 enemyBullets = [];
@@ -565,14 +551,13 @@
                 score = 0;
                 playerX = gameContainer.clientWidth / 2;
                 
-                // Обновляем отображение
                 scoreDisplay.textContent = `Очки: ${score}`;
                 updateLivesDisplay();
                 player.style.left = `${playerX}px`;
-                player.style.backgroundColor = '#4CAF50';
+                player.src = playerSprites[0];
+                player.style.filter = 'brightness(1)';
                 gameOverScreen.style.display = 'none';
                 
-                // Запускаем игру заново
                 gameActive = true;
                 lastTimestamp = 0;
                 requestAnimationFrame(gameLoop);
