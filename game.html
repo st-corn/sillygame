@@ -1,0 +1,590 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Vertical Shooter</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            touch-action: none;
+        }
+        
+        body {
+            overflow: hidden;
+            background: #121212;
+        }
+        
+        #game-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            background: linear-gradient(to bottom, #1a2980, #26d0ce);
+            overflow: hidden;
+        }
+        
+        #player {
+            position: absolute;
+            width: 40px;
+            height: 25px;
+            background: #4CAF50;
+            clip-path: polygon(50% 0, 100% 30%, 100% 70%, 50% 100%, 0 70%, 0 30%);
+            z-index: 10;
+            bottom: 100px;
+            left: 50%;
+            transform: translateX(-50%);
+            transition: left 0.1s ease-out;
+        }
+        
+        .bullet {
+            position: absolute;
+            width: 8px;
+            height: 16px;
+            background: #FFEB3B;
+            border-radius: 4px;
+            z-index: 5;
+        }
+        
+        .enemy {
+            position: absolute;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+        }
+        
+        .enemy-type1 {
+            background: #F44336;
+        }
+        
+        .enemy-type2 {
+            background: #FF9800;
+        }
+        
+        .enemy-bullet {
+            position: absolute;
+            width: 8px;
+            height: 15px;
+            background: #9C27B0;
+            border-radius: 4px;
+        }
+        
+        .obstacle {
+            position: absolute;
+            background: #795548;
+            border-radius: 5px;
+        }
+        
+        #score {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            font-size: 20px;
+            color: white;
+            font-family: 'Arial', sans-serif;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.7);
+            z-index: 20;
+        }
+        
+        #lives {
+            position: absolute;
+            top: 15px;
+            left: 15px;
+            font-size: 20px;
+            color: white;
+            font-family: 'Arial', sans-serif;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.7);
+            z-index: 20;
+        }
+        
+        #game-over {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            font-family: 'Arial', sans-serif;
+            z-index: 30;
+            display: none;
+        }
+        
+        #restart-btn {
+            margin-top: 20px;
+            padding: 10px 20px;
+            background: #4CAF50;
+            border: none;
+            border-radius: 5px;
+            color: white;
+            font-size: 18px;
+            cursor: pointer;
+        }
+        
+        .controls-info {
+            position: absolute;
+            bottom: 15px;
+            width: 100%;
+            text-align: center;
+            color: white;
+            font-family: 'Arial', sans-serif;
+            font-size: 14px;
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.7);
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <div id="player"></div>
+        <div id="lives">Жизни: ❤️❤️❤️</div>
+        <div id="score">Очки: 0</div>
+        <div class="controls-info">Используй стрелки влево/вправо или двигай пальцем по экрану</div>
+        
+        <div id="game-over">
+            <h1>Игра окончена!</h1>
+            <p id="final-score">Ваш счет: 0</p>
+            <button id="restart-btn">Играть снова</button>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const gameContainer = document.getElementById('game-container');
+            const player = document.getElementById('player');
+            const livesDisplay = document.getElementById('lives');
+            const scoreDisplay = document.getElementById('score');
+            const gameOverScreen = document.getElementById('game-over');
+            const finalScoreDisplay = document.getElementById('final-score');
+            const restartBtn = document.getElementById('restart-btn');
+            
+            // Игровые переменные
+            let playerX = gameContainer.clientWidth / 2;
+            let playerLives = 3;
+            let score = 0;
+            let gameActive = true;
+            let bullets = [];
+            let enemies = [];
+            let enemyBullets = [];
+            let obstacles = [];
+            let lastShot = 0;
+            let touchStartX = 0;
+            let playerStartX = 0;
+            let isTouching = false;
+            let enemySpawnTimer = 0;
+            let obstacleSpawnTimer = 0;
+            let backgroundOffset = 0;
+            let lastTimestamp = 0;
+            
+            // Управление с клавиатуры
+            document.addEventListener('keydown', (e) => {
+                if (!gameActive) return;
+                
+                // Для клавиатуры сохраняем плавное движение с инерцией
+                const keySpeed = 15;
+                if (e.key === 'ArrowLeft') {
+                    playerX = Math.max(20, playerX - keySpeed);
+                } else if (e.key === 'ArrowRight') {
+                    playerX = Math.min(gameContainer.clientWidth - 20, playerX + keySpeed);
+                }
+                player.style.left = `${playerX}px`;
+            });
+            
+            // Управление касанием для мобильных устройств
+            gameContainer.addEventListener('touchstart', (e) => {
+                if (!gameActive) return;
+                
+                touchStartX = e.touches[0].clientX;
+                playerStartX = playerX;
+                isTouching = true;
+                e.preventDefault();
+            });
+            
+            gameContainer.addEventListener('touchmove', (e) => {
+                if (!gameActive || !isTouching) return;
+                
+                const touchX = e.touches[0].clientX;
+                const diff = touchX - touchStartX;
+                
+                // Плавное движение без инерции
+                playerX = playerStartX + diff;
+                
+                // Ограничиваем движение в пределах экрана
+                playerX = Math.min(Math.max(playerX, 20), gameContainer.clientWidth - 20);
+                
+                // Обновляем позицию на экране
+                player.style.left = `${playerX}px`;
+                
+                e.preventDefault();
+            });
+            
+            gameContainer.addEventListener('touchend', () => {
+                isTouching = false;
+            });
+            
+            function shoot() {
+                const bullet = document.createElement('div');
+                bullet.className = 'bullet';
+                
+                // Пуля появляется из носа самолета
+                const playerRect = player.getBoundingClientRect();
+                const gameRect = gameContainer.getBoundingClientRect();
+                
+                // Центр игрока по X
+                const bulletX = playerX;
+                // Верхняя точка игрока + небольшой отступ
+                const bulletY = (playerRect.top - gameRect.top) - 10;
+                
+                bullet.style.left = `${bulletX}px`;
+                bullet.style.top = `${bulletY}px`;
+                gameContainer.appendChild(bullet);
+                
+                // Сохраняем позицию снаряда
+                bullets.push({
+                    element: bullet,
+                    x: bulletX,
+                    y: bulletY
+                });
+            }
+            
+            function createEnemy() {
+                const enemy = document.createElement('div');
+                
+                // Случайно выбираем тип врага
+                const enemyType = Math.random() > 0.5 ? 1 : 2;
+                enemy.className = `enemy enemy-type${enemyType}`;
+                
+                const x = Math.random() * (gameContainer.clientWidth - 60) + 30;
+                enemy.style.left = `${x}px`;
+                enemy.style.bottom = `${gameContainer.clientHeight}px`;
+                gameContainer.appendChild(enemy);
+                
+                // Параметры врагов по типу
+                let speed, shootInterval, horizontalSpeed, amplitude;
+                
+                if (enemyType === 1) {
+                    // Тип 1: быстрее, реже стреляет
+                    speed = 3.5;
+                    shootInterval = 3000;
+                    horizontalSpeed = 0.06;
+                    amplitude = 50;
+                } else {
+                    // Тип 2: медленнее, чаще стреляет
+                    speed = 2.5;
+                    shootInterval = 2000;
+                    horizontalSpeed = 0.04;
+                    amplitude = 35;
+                }
+                
+                enemies.push({
+                    element: enemy,
+                    x: x,
+                    initialX: x,
+                    y: gameContainer.clientHeight,
+                    speed: speed,
+                    shootTimer: 0,
+                    type: enemyType,
+                    horizontalSpeed: horizontalSpeed,
+                    amplitude: amplitude,
+                    angle: 0
+                });
+            }
+            
+            function createObstacle() {
+                const obstacle = document.createElement('div');
+                obstacle.className = 'obstacle';
+                
+                if (Math.random() > 0.5) {
+                    obstacle.style.width = '25px';
+                    obstacle.style.height = `${Math.random() * 100 + 60}px`;
+                    obstacle.style.left = `${Math.random() * (gameContainer.clientWidth - 50)}px`;
+                    obstacle.style.bottom = `${gameContainer.clientHeight}px`;
+                } else {
+                    obstacle.style.width = `${Math.random() * 90 + 60}px`;
+                    obstacle.style.height = '25px';
+                    obstacle.style.left = `${Math.random() * (gameContainer.clientWidth - 150)}px`;
+                    obstacle.style.bottom = `${gameContainer.clientHeight}px`;
+                }
+                
+                gameContainer.appendChild(obstacle);
+                
+                obstacles.push({
+                    element: obstacle,
+                    x: parseInt(obstacle.style.left),
+                    y: parseInt(obstacle.style.bottom),
+                    speed: 2.5
+                });
+            }
+            
+            function moveBullets(deltaTime) {
+                for (let i = bullets.length - 1; i >= 0; i--) {
+                    const bullet = bullets[i];
+                    // Двигаем снаряд вверх (уменьшаем Y)
+                    bullet.y -= 12 * (deltaTime / 16);
+                    bullet.element.style.top = `${bullet.y}px`;
+                    
+                    // Удаляем если вышел за верхнюю границу экрана
+                    if (bullet.y < -20) {
+                        bullet.element.remove();
+                        bullets.splice(i, 1);
+                    }
+                }
+            }
+            
+            function moveEnemies(timestamp, deltaTime) {
+                for (let i = enemies.length - 1; i >= 0; i--) {
+                    const enemy = enemies[i];
+                    
+                    // Движение вверх (к игроку)
+                    enemy.y -= enemy.speed * (deltaTime / 16);
+                    enemy.element.style.bottom = `${enemy.y}px`;
+                    
+                    // Горизонтальное движение (синусоидальное)
+                    enemy.angle += enemy.horizontalSpeed * (deltaTime / 16);
+                    enemy.x = enemy.initialX + Math.sin(enemy.angle) * enemy.amplitude;
+                    enemy.element.style.left = `${enemy.x}px`;
+                    
+                    // Стрельба врагов
+                    enemy.shootTimer += deltaTime;
+                    if (enemy.shootTimer > (enemy.type === 1 ? 3000 : 2000)) {
+                        const bullet = document.createElement('div');
+                        bullet.className = 'enemy-bullet';
+                        bullet.style.left = `${enemy.x}px`;
+                        bullet.style.bottom = `${enemy.y}px`;
+                        gameContainer.appendChild(bullet);
+                        
+                        // Сохраняем позицию снаряда
+                        enemyBullets.push({
+                            element: bullet,
+                            y: parseInt(bullet.style.bottom)
+                        });
+                        
+                        enemy.shootTimer = 0;
+                    }
+                    
+                    // Удаление врагов за экраном
+                    if (enemy.y < -50) {
+                        enemy.element.remove();
+                        enemies.splice(i, 1);
+                    }
+                }
+            }
+            
+            function moveEnemyBullets(deltaTime) {
+                for (let i = enemyBullets.length - 1; i >= 0; i--) {
+                    const bullet = enemyBullets[i];
+                    // Двигаем снаряд вниз (к игроку)
+                    bullet.y -= 7 * (deltaTime / 16);
+                    bullet.element.style.bottom = `${bullet.y}px`;
+                    
+                    if (bullet.y < -20) {
+                        bullet.element.remove();
+                        enemyBullets.splice(i, 1);
+                    }
+                }
+            }
+            
+            function moveObstacles(deltaTime) {
+                for (let i = obstacles.length - 1; i >= 0; i--) {
+                    const obstacle = obstacles[i];
+                    obstacle.y -= obstacle.speed * (deltaTime / 16);
+                    obstacle.element.style.bottom = `${obstacle.y}px`;
+                    
+                    if (obstacle.y < -obstacle.element.clientHeight) {
+                        obstacle.element.remove();
+                        obstacles.splice(i, 1);
+                    }
+                }
+            }
+            
+            function checkCollisions() {
+                const playerRect = player.getBoundingClientRect();
+                
+                // Проверка столкновений игрока с врагами
+                for (let i = enemies.length - 1; i >= 0; i--) {
+                    const enemy = enemies[i];
+                    const enemyRect = enemy.element.getBoundingClientRect();
+                    
+                    if (isColliding(playerRect, enemyRect)) {
+                        takeDamage();
+                        return;
+                    }
+                }
+                
+                // Проверка столкновений игрока с вражескими пулями
+                for (let i = enemyBullets.length - 1; i >= 0; i--) {
+                    const bullet = enemyBullets[i];
+                    const bulletRect = bullet.element.getBoundingClientRect();
+                    
+                    if (isColliding(playerRect, bulletRect)) {
+                        bullet.element.remove();
+                        enemyBullets.splice(i, 1);
+                        takeDamage();
+                        return;
+                    }
+                }
+                
+                // Проверка столкновений игрока с препятствиями
+                for (let i = obstacles.length - 1; i >= 0; i--) {
+                    const obstacle = obstacles[i];
+                    const obstacleRect = obstacle.element.getBoundingClientRect();
+                    
+                    if (isColliding(playerRect, obstacleRect)) {
+                        takeDamage();
+                        return;
+                    }
+                }
+                
+                // Проверка столкновений пуль игрока с врагами
+                for (let i = bullets.length - 1; i >= 0; i--) {
+                    const bullet = bullets[i];
+                    const bulletRect = bullet.element.getBoundingClientRect();
+                    
+                    for (let j = enemies.length - 1; j >= 0; j--) {
+                        const enemy = enemies[j];
+                        const enemyRect = enemy.element.getBoundingClientRect();
+                        
+                        if (isColliding(bulletRect, enemyRect)) {
+                            // Удаляем пулю и врага
+                            bullet.element.remove();
+                            bullets.splice(i, 1);
+                            enemy.element.remove();
+                            enemies.splice(j, 1);
+                            
+                            // Добавляем очки (больше за быстрых врагов)
+                            score += enemy.type === 1 ? 20 : 10;
+                            scoreDisplay.textContent = `Очки: ${score}`;
+                            break;
+                        }
+                    }
+                }
+            }
+            
+            function takeDamage() {
+                playerLives--;
+                updateLivesDisplay();
+                
+                // Анимация повреждения
+                player.style.backgroundColor = '#ff0000';
+                setTimeout(() => {
+                    if (gameActive) player.style.backgroundColor = '#4CAF50';
+                }, 200);
+                
+                if (playerLives <= 0) {
+                    endGame();
+                }
+            }
+            
+            function updateLivesDisplay() {
+                let livesHTML = 'Жизни: ';
+                for (let i = 0; i < playerLives; i++) {
+                    livesHTML += '❤️';
+                }
+                livesDisplay.innerHTML = livesHTML;
+            }
+            
+            function isColliding(rect1, rect2) {
+                return (
+                    rect1.left < rect2.right &&
+                    rect1.right > rect2.left &&
+                    rect1.top < rect2.bottom &&
+                    rect1.bottom > rect2.top
+                );
+            }
+            
+            function endGame() {
+                gameActive = false;
+                finalScoreDisplay.textContent = `Ваш счет: ${score}`;
+                gameOverScreen.style.display = 'flex';
+            }
+            
+            // Игровой цикл
+            function gameLoop(timestamp) {
+                if (!gameActive) return;
+                
+                // Рассчитываем дельту времени для плавного движения
+                const deltaTime = timestamp - (lastTimestamp || timestamp);
+                lastTimestamp = timestamp;
+                
+                // Стрельба игрока
+                if (timestamp - lastShot > 400) {
+                    shoot();
+                    lastShot = timestamp;
+                }
+                
+                // Генерация врагов
+                enemySpawnTimer += deltaTime;
+                if (enemySpawnTimer > 1000) {
+                    createEnemy();
+                    enemySpawnTimer = 0;
+                }
+                
+                // Генерация препятствий
+                obstacleSpawnTimer += deltaTime;
+                if (obstacleSpawnTimer > 2000) {
+                    createObstacle();
+                    obstacleSpawnTimer = 0;
+                }
+                
+                // Движение пуль игрока
+                moveBullets(deltaTime);
+                
+                // Движение врагов и их стрельба
+                moveEnemies(timestamp, deltaTime);
+                
+                // Движение пуль врагов
+                moveEnemyBullets(deltaTime);
+                
+                // Движение препятствий
+                moveObstacles(deltaTime);
+                
+                // Проверка столкновений
+                checkCollisions();
+                
+                // Анимируем фон (движение вниз)
+                backgroundOffset = (backgroundOffset + 1.5 * (deltaTime / 16)) % 100;
+                gameContainer.style.backgroundPosition = `0 ${backgroundOffset}%`;
+                
+                requestAnimationFrame(gameLoop);
+            }
+            
+            restartBtn.addEventListener('click', () => {
+                // Удаляем все игровые элементы
+                document.querySelectorAll('.bullet, .enemy, .enemy-bullet, .obstacle').forEach(el => el.remove());
+                
+                // Сбрасываем игровые переменные
+                bullets = [];
+                enemies = [];
+                enemyBullets = [];
+                obstacles = [];
+                playerLives = 3;
+                score = 0;
+                playerX = gameContainer.clientWidth / 2;
+                
+                // Обновляем отображение
+                scoreDisplay.textContent = `Очки: ${score}`;
+                updateLivesDisplay();
+                player.style.left = `${playerX}px`;
+                player.style.backgroundColor = '#4CAF50';
+                gameOverScreen.style.display = 'none';
+                
+                // Запускаем игру заново
+                gameActive = true;
+                lastTimestamp = 0;
+                requestAnimationFrame(gameLoop);
+            });
+            
+            // Инициализация игры
+            updateLivesDisplay();
+            player.style.left = `${playerX}px`;
+            
+            // Запускаем игру
+            requestAnimationFrame(gameLoop);
+        });
+    </script>
+</body>
+</html>
