@@ -14,25 +14,51 @@
         
         body {
             overflow: hidden;
-            background: #121212;
+            background: #000;
         }
         
         #game-container {
             position: relative;
             width: 100vw;
             height: 100vh;
+            overflow: hidden;
+        }
+        
+        /* Плавный бесконечный фон */
+        .background-layer {
+            position: absolute;
+            width: 100%;
+            height: 100%;
             background: url('sprites/Space_Stars4.png');
             background-size: cover;
-            overflow: hidden;
+            z-index: 1;
+        }
+        
+        #background1 {
+            top: 0;
+        }
+        
+        #background2 {
+            top: -100%;
+        }
+        
+        /* Контейнер для игровых объектов */
+        #game-objects {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 10;
         }
         
         #player {
             position: absolute;
-            z-index: 10;
             bottom: 100px;
             left: 50%;
             transform: translateX(-50%);
             transition: left 0.1s ease-out;
+            z-index: 20;
         }
         
         .bullet {
@@ -41,12 +67,13 @@
             height: 16px;
             background: #FFEB3B;
             border-radius: 4px;
-            z-index: 5;
+            z-index: 15;
         }
         
         .enemy {
             position: absolute;
-            z-index: 7;
+            transform: rotate(180deg);
+            z-index: 15;
         }
         
         .enemy-bullet {
@@ -55,12 +82,15 @@
             height: 15px;
             background: #9C27B0;
             border-radius: 4px;
+            z-index: 15;
+            transform: rotate(180deg); /* Разворот пуль врагов */
         }
         
         .obstacle {
             position: absolute;
             background: #795548;
             border-radius: 5px;
+            z-index: 15;
         }
         
         #score {
@@ -71,7 +101,7 @@
             color: white;
             font-family: 'Arial', sans-serif;
             text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.7);
-            z-index: 20;
+            z-index: 30;
         }
         
         #lives {
@@ -82,7 +112,7 @@
             color: white;
             font-family: 'Arial', sans-serif;
             text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.7);
-            z-index: 20;
+            z-index: 30;
         }
         
         #game-over {
@@ -98,7 +128,7 @@
             align-items: center;
             color: white;
             font-family: 'Arial', sans-serif;
-            z-index: 30;
+            z-index: 40;
             display: none;
         }
         
@@ -122,32 +152,43 @@
             font-family: 'Arial', sans-serif;
             font-size: 14px;
             text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.7);
+            z-index: 30;
         }
     </style>
 </head>
 <body>
     <div id="game-container">
-        <img id="player" src="sprites/Main Ship - Base - Full health.png" alt="Player Ship">
-        <div id="lives">Жизни: ❤️❤️❤️</div>
-        <div id="score">Очки: 0</div>
-        <div class="controls-info">Используй стрелки влево/вправо или двигай пальцем по экрану</div>
+        <!-- Два слоя фона для плавной прокрутки -->
+        <div id="background1" class="background-layer"></div>
+        <div id="background2" class="background-layer"></div>
         
-        <div id="game-over">
-            <h1>Игра окончена!</h1>
-            <p id="final-score">Ваш счет: 0</p>
-            <button id="restart-btn">Играть снова</button>
+        <!-- Контейнер для всех игровых объектов -->
+        <div id="game-objects">
+            <img id="player" src="sprites/Main Ship - Base - Full health.png" alt="Player Ship">
+            <div id="lives">Жизни: ❤️❤️❤️</div>
+            <div id="score">Очки: 0</div>
+            <div class="controls-info">Используй стрелки влево/вправо или двигай пальцем по экрану</div>
+            
+            <div id="game-over">
+                <h1>Игра окончена!</h1>
+                <p id="final-score">Ваш счет: 0</p>
+                <button id="restart-btn">Играть снова</button>
+            </div>
         </div>
     </div>
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             const gameContainer = document.getElementById('game-container');
+            const gameObjects = document.getElementById('game-objects');
             const player = document.getElementById('player');
             const livesDisplay = document.getElementById('lives');
             const scoreDisplay = document.getElementById('score');
             const gameOverScreen = document.getElementById('game-over');
             const finalScoreDisplay = document.getElementById('final-score');
             const restartBtn = document.getElementById('restart-btn');
+            const background1 = document.getElementById('background1');
+            const background2 = document.getElementById('background2');
             
             // Спрайты для игрока в зависимости от здоровья
             const playerSprites = [
@@ -178,7 +219,7 @@
             document.addEventListener('keydown', (e) => {
                 if (!gameActive) return;
                 
-                const keySpeed = 17; // Было 15 (+15%)
+                const keySpeed = 17;
                 if (e.key === 'ArrowLeft') {
                     playerX = Math.max(20, playerX - keySpeed);
                 } else if (e.key === 'ArrowRight') {
@@ -226,7 +267,7 @@
                 
                 bullet.style.left = `${bulletX}px`;
                 bullet.style.top = `${bulletY}px`;
-                gameContainer.appendChild(bullet);
+                gameObjects.appendChild(bullet);
                 
                 bullets.push({
                     element: bullet,
@@ -252,7 +293,7 @@
                 const x = Math.random() * (gameContainer.clientWidth - 100) + 50;
                 enemyImg.style.left = `${x}px`;
                 enemyImg.style.bottom = `${gameContainer.clientHeight}px`;
-                gameContainer.appendChild(enemyImg);
+                gameObjects.appendChild(enemyImg);
                 
                 // Параметры врагов по типу
                 let speed, shootInterval, horizontalSpeed, amplitude;
@@ -299,7 +340,7 @@
                     obstacle.style.bottom = `${gameContainer.clientHeight}px`;
                 }
                 
-                gameContainer.appendChild(obstacle);
+                gameObjects.appendChild(obstacle);
                 
                 obstacles.push({
                     element: obstacle,
@@ -339,11 +380,12 @@
                         bullet.className = 'enemy-bullet';
                         bullet.style.left = `${enemy.x}px`;
                         bullet.style.bottom = `${enemy.y}px`;
-                        gameContainer.appendChild(bullet);
+                        gameObjects.appendChild(bullet);
                         
                         enemyBullets.push({
                             element: bullet,
-                            y: parseInt(bullet.style.bottom)
+                            x: enemy.x,
+                            y: enemy.y
                         });
                         
                         enemy.shootTimer = 0;
@@ -359,10 +401,12 @@
             function moveEnemyBullets(deltaTime) {
                 for (let i = enemyBullets.length - 1; i >= 0; i--) {
                     const bullet = enemyBullets[i];
+                    // Пули врагов движутся вниз (увеличиваем y)
                     bullet.y -= 7 * (deltaTime / 16);
                     bullet.element.style.bottom = `${bullet.y}px`;
                     
-                    if (bullet.y < -20) {
+                    // Удаляем, если пуля ушла за нижний край экрана
+                    if (bullet.y > gameContainer.clientHeight + 50) {
                         bullet.element.remove();
                         enemyBullets.splice(i, 1);
                     }
@@ -380,6 +424,20 @@
                         obstacles.splice(i, 1);
                     }
                 }
+            }
+            
+            function moveBackground(deltaTime) {
+                // Плавное движение фона вниз
+                backgroundOffset += 0.8 * (deltaTime / 16);
+                
+                // Бесшовный переход при достижении края
+                if (backgroundOffset >= 100) {
+                    backgroundOffset = 0;
+                }
+                
+                // Позиционирование двух слоев фона
+                background1.style.top = `${backgroundOffset}%`;
+                background2.style.top = `${backgroundOffset - 100}%`;
             }
             
             function checkCollisions() {
@@ -532,17 +590,17 @@
                 moveEnemies(timestamp, deltaTime);
                 moveEnemyBullets(deltaTime);
                 moveObstacles(deltaTime);
+                moveBackground(deltaTime);
                 checkCollisions();
-                
-                backgroundOffset = (backgroundOffset + 1.5 * (deltaTime / 16)) % 100;
-                gameContainer.style.backgroundPosition = `0 ${backgroundOffset}%`;
                 
                 requestAnimationFrame(gameLoop);
             }
             
             restartBtn.addEventListener('click', () => {
+                // Удаляем все игровые элементы
                 document.querySelectorAll('.bullet, .enemy, .enemy-bullet, .obstacle').forEach(el => el.remove());
                 
+                // Сбрасываем игровые переменные
                 bullets = [];
                 enemies = [];
                 enemyBullets = [];
@@ -550,7 +608,13 @@
                 playerLives = 3;
                 score = 0;
                 playerX = gameContainer.clientWidth / 2;
+                backgroundOffset = 0;
                 
+                // Сброс позиции фона
+                background1.style.top = '0%';
+                background2.style.top = '-100%';
+                
+                // Обновляем отображение
                 scoreDisplay.textContent = `Очки: ${score}`;
                 updateLivesDisplay();
                 player.style.left = `${playerX}px`;
