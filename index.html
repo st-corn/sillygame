@@ -396,7 +396,7 @@
                     enemy.element.style.left = `${enemy.x}px`;
                     
                     enemy.shootTimer += deltaTime;
-                    if (enemy.shootTimer > (enemy.type === 1 ? 1000 : 500)) {
+                    if (enemy.shootTimer > (enemy.type === 1 ? 100 : 50)) {
                         const bullet = document.createElement('div');
                         bullet.className = 'enemy-bullet';
                         
