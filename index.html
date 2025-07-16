@@ -61,29 +61,33 @@
             z-index: 20;
         }
         
-        .bullet {
+        /* Анимированные пули игрока */
+        .player-bullet {
             position: absolute;
-            width: 8px;
-            height: 16px;
-            background: #FFEB3B;
-            border-radius: 4px;
+            width: 16px;
+            height: 32px;
+            background: url('sprites/Main ship weapon - Projectile - Big Space Gun.png') 0 0;
+            background-size: 1000% 100%; /* 10 кадров */
             z-index: 15;
+            image-rendering: pixelated;
+        }
+        
+        /* Анимированные пули врагов */
+        .enemy-bullet {
+            position: absolute;
+            width: 14px;
+            height: 22px;
+            background: url('sprites/Nairan - Bolt.png') 0 0;
+            background-size: 500% 100%; /* 3 кадра */
+            z-index: 15;
+            transform: rotate(180deg);
+            image-rendering: pixelated;
         }
         
         .enemy {
             position: absolute;
             transform: rotate(180deg);
             z-index: 15;
-        }
-        
-        .enemy-bullet {
-            position: absolute;
-            width: 8px;
-            height: 15px;
-            background: #9C27B0;
-            border-radius: 4px;
-            z-index: 15;
-            transform: rotate(180deg); /* Разворот пуль врагов */
         }
         
         .obstacle {
@@ -197,6 +201,12 @@
                 'sprites/Main Ship - Base - Very damaged.png'
             ];
             
+            // Константы для анимации пуль
+            const PLAYER_BULLET_FRAMES = 10;
+            const ENEMY_BULLET_FRAMES = 5;
+            const PLAYER_BULLET_FRAME_TIME = 80; // ms на кадр
+            const ENEMY_BULLET_FRAME_TIME = 100; // ms на кадр
+            
             // Игровые переменные
             let playerX = gameContainer.clientWidth / 2;
             let playerLives = 3;
@@ -257,12 +267,12 @@
             
             function shoot() {
                 const bullet = document.createElement('div');
-                bullet.className = 'bullet';
+                bullet.className = 'player-bullet';
                 
                 const playerRect = player.getBoundingClientRect();
                 const gameRect = gameContainer.getBoundingClientRect();
                 
-                const bulletX = playerX;
+                const bulletX = playerX - 4; // Центрирование
                 const bulletY = (playerRect.top - gameRect.top) - 10;
                 
                 bullet.style.left = `${bulletX}px`;
@@ -272,7 +282,9 @@
                 bullets.push({
                     element: bullet,
                     x: bulletX,
-                    y: bulletY
+                    y: bulletY,
+                    frame: 0,             // Текущий кадр
+                    frameTimer: 0         // Таймер для смены кадров
                 });
             }
             
@@ -356,6 +368,15 @@
                     bullet.y -= 12 * (deltaTime / 16);
                     bullet.element.style.top = `${bullet.y}px`;
                     
+                    // Анимация кадров для пуль игрока
+                    bullet.frameTimer += deltaTime;
+                    if (bullet.frameTimer > PLAYER_BULLET_FRAME_TIME) {
+                        bullet.frameTimer = 0;
+                        bullet.frame = (bullet.frame + 1) % PLAYER_BULLET_FRAMES;
+                        // Смещение фона для показа нужного кадра
+                        bullet.element.style.backgroundPosition = `-${bullet.frame * 100}% 0`;
+                    }
+                    
                     if (bullet.y < -20) {
                         bullet.element.remove();
                         bullets.splice(i, 1);
@@ -378,14 +399,21 @@
                     if (enemy.shootTimer > (enemy.type === 1 ? 3000 : 2000)) {
                         const bullet = document.createElement('div');
                         bullet.className = 'enemy-bullet';
-                        bullet.style.left = `${enemy.x}px`;
-                        bullet.style.bottom = `${enemy.y}px`;
+                        
+                        // Центрирование пули под врагом
+                        const bulletX = enemy.x - 4;
+                        const bulletY = enemy.y - enemy.element.clientHeight;
+                        
+                        bullet.style.left = `${bulletX}px`;
+                        bullet.style.bottom = `${bulletY}px`;
                         gameObjects.appendChild(bullet);
                         
                         enemyBullets.push({
                             element: bullet,
-                            x: enemy.x,
-                            y: enemy.y
+                            x: bulletX,
+                            y: bulletY,
+                            frame: 0,             // Текущий кадр
+                            frameTimer: 0         // Таймер для смены кадров
                         });
                         
                         enemy.shootTimer = 0;
@@ -405,8 +433,16 @@
                     bullet.y -= 7 * (deltaTime / 16);
                     bullet.element.style.bottom = `${bullet.y}px`;
                     
-                    // Удаляем, если пуля ушла за нижний край экрана
-                    if (bullet.y > gameContainer.clientHeight + 50) {
+                    // Анимация кадров для пуль врагов
+                    bullet.frameTimer += deltaTime;
+                    if (bullet.frameTimer > ENEMY_BULLET_FRAME_TIME) {
+                        bullet.frameTimer = 0;
+                        bullet.frame = (bullet.frame + 1) % ENEMY_BULLET_FRAMES;
+                        bullet.element.style.backgroundPosition = `-${bullet.frame * 100}% 0`;
+                    }
+                    
+                    // Удаляем, если пуля ушла за верхний край экрана
+                    if (bullet.y < -50) {
                         bullet.element.remove();
                         enemyBullets.splice(i, 1);
                     }
@@ -598,7 +634,7 @@
             
             restartBtn.addEventListener('click', () => {
                 // Удаляем все игровые элементы
-                document.querySelectorAll('.bullet, .enemy, .enemy-bullet, .obstacle').forEach(el => el.remove());
+                document.querySelectorAll('.player-bullet, .enemy-bullet, .enemy, .obstacle').forEach(el => el.remove());
                 
                 // Сбрасываем игровые переменные
                 bullets = [];
