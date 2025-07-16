@@ -312,12 +312,12 @@
                 
                 if (enemyType === 1) {
                     speed = 3.5;
-                    shootInterval = 3000;
+                    shootInterval = 2000;
                     horizontalSpeed = 0.06;
                     amplitude = 50;
                 } else {
                     speed = 2.5;
-                    shootInterval = 2000;
+                    shootInterval = 1500;
                     horizontalSpeed = 0.04;
                     amplitude = 35;
                 }
@@ -365,7 +365,7 @@
             function moveBullets(deltaTime) {
                 for (let i = bullets.length - 1; i >= 0; i--) {
                     const bullet = bullets[i];
-                    bullet.y -= 12 * (deltaTime / 16);
+                    bullet.y -= 10 * (deltaTime / 16);
                     bullet.element.style.top = `${bullet.y}px`;
                     
                     // Анимация кадров для пуль игрока
